@@ -7,13 +7,6 @@ app = Flask(__name__)
 # -------------------------------------------------------
 # 🔹 CONFIGURACIÓN DE CONEXIÓN A CLOUD SQL
 # -------------------------------------------------------
-# Si estás probando localmente, puedes reemplazar estas líneas
-# por tus datos reales, por ejemplo:
-#DB_USER = "AppUser"
-#DB_PASS = "{%d6Qa\A}E;xu4y%"
-#DB_NAME = "Agrovida"
-#DB_HOST = "136.112.42.237"
-
 DB_USER = os.environ.get("DB_USER")
 DB_PASS = os.environ.get("DB_PASS")
 DB_NAME = os.environ.get("DB_NAME")
@@ -32,7 +25,7 @@ def get_connection():
 # -------------------------------------------------------
 @app.route("/")
 def home():
-    return "🚜 Servicio AgroVida activo"
+    return "🚜 Servicio AgroVida activo - módulo terrenos"
 
 # -------------------------------------------------------
 # 🔹 RUTA DE TERRENOS (GET / POST)
@@ -45,67 +38,38 @@ def terrenos():
     if request.method == "POST":
         data = request.get_json()
         nombre = data.get("nombre")
-        ubicacion = data.get("ubicacion")
-        tamano = data.get("tamano")
-        cultivo = data.get("cultivo")
+        latitud = data.get("latitud")
+        longitud = data.get("longitud")
 
-        if not nombre or not ubicacion:
+        # Validar datos requeridos
+        if not nombre or latitud is None or longitud is None:
             return jsonify({"error": "Faltan datos obligatorios"}), 400
 
-        cur.execute(
-            """
-            INSERT INTO terrenos (nombre, ubicacion, tamano, cultivo)
-            VALUES (%s, %s, %s, %s)
-            """,
-            (nombre, ubicacion, tamano, cultivo)
-        )
-        conn.commit()
-        cur.close()
-        conn.close()
-        return jsonify({"status": "ok", "message": "Terreno registrado correctamente"})
+        try:
+            cur.execute(
+                """
+                INSERT INTO terrenos (nombre, latitud, longitud)
+                VALUES (%s, %s, %s)
+                """,
+                (nombre, latitud, longitud)
+            )
+            conn.commit()
+            return jsonify({"status": "ok", "message": "Terreno guardado correctamente"})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({"error": str(e)}), 500
+        finally:
+            cur.close()
+            conn.close()
 
     # Si es GET: devolver todos los terrenos
-    cur.execute("SELECT id, nombre, ubicacion, tamano, cultivo FROM terrenos ORDER BY id DESC")
+    cur.execute("SELECT id, nombre, latitud, longitud FROM terrenos ORDER BY id DESC")
     rows = cur.fetchall()
     cur.close()
     conn.close()
 
     return jsonify([
-        {"id": r[0], "nombre": r[1], "ubicacion": r[2], "tamano": r[3], "cultivo": r[4]}
-        for r in rows
-    ])
-
-# -------------------------------------------------------
-# 🔹 RUTA DE COMENTARIOS (GET / POST)
-# -------------------------------------------------------
-@app.route("/comentarios", methods=["GET", "POST"])
-def comentarios():
-    conn = get_connection()
-    cur = conn.cursor()
-
-    if request.method == "POST":
-        data = request.get_json()
-        terreno_id = data.get("terreno_id")
-        texto = data.get("texto")
-
-        if not terreno_id or not texto:
-            return jsonify({"error": "Faltan datos obligatorios"}), 400
-
-        cur.execute(
-            "INSERT INTO comentarios (terreno_id, texto) VALUES (%s, %s)",
-            (terreno_id, texto)
-        )
-        conn.commit()
-        cur.close()
-        conn.close()
-        return jsonify({"status": "ok", "message": "Comentario guardado correctamente"})
-
-    cur.execute("SELECT id, terreno_id, texto, fecha FROM comentarios ORDER BY fecha DESC")
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
-    return jsonify([
-        {"id": r[0], "terreno_id": r[1], "texto": r[2], "fecha": str(r[3])}
+        {"id": r[0], "nombre": r[1], "latitud": r[2], "longitud": r[3]}
         for r in rows
     ])
 

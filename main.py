@@ -9,15 +9,15 @@ app = Flask(__name__)
 # -------------------------------------------------------
 # Si estás probando localmente, puedes reemplazar estas líneas
 # por tus datos reales, por ejemplo:
-DB_USER = "AppUser"
-DB_PASS = "{%d6Qa\A}E;xu4y%"
-DB_NAME = "Agrovida"
-DB_HOST = "136.112.42.237"
+#DB_USER = "AppUser"
+#DB_PASS = "{%d6Qa\A}E;xu4y%"
+#DB_NAME = "Agrovida"
+#DB_HOST = "136.112.42.237"
 
-#DB_USER = os.environ.get("DB_USER")
-#DB_PASS = os.environ.get("DB_PASS")
-#DB_NAME = os.environ.get("DB_NAME")
-#DB_HOST = os.environ.get("DB_HOST")  # IP pública o socket unix
+DB_USER = os.environ.get("DB_USER")
+DB_PASS = os.environ.get("DB_PASS")
+DB_NAME = os.environ.get("DB_NAME")
+DB_HOST = os.environ.get("DB_HOST")  # IP pública o socket unix
 
 def get_connection():
     return psycopg2.connect(

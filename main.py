@@ -164,21 +164,69 @@ def get_comentarios(terreno_id):
             cur.close()
         if conn:
             conn.close()
+            
+# -------------------------------------------------------
+# 🔹 RUTA PARA ACTUALIZAR UN TERRENO (PUT)
+# -------------------------------------------------------
+@app.route("/terrenos/<int:terreno_id>", methods=["PUT"])
+def update_terreno(terreno_id):
+    conn = None
+    cur = None
+    try:
+        data = request.get_json()
+        nombre = data.get("nombre")
+        latitud = data.get("latitud")
+        longitud = data.get("longitud")
+
+        if not nombre or latitud is None or longitud is None:
+            return jsonify({"error": "Faltan datos"}), 400
+
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE terrenos
+            SET nombre = %s, latitud = %s, longitud = %s
+            WHERE id = %s
+        """, (nombre, latitud, longitud, terreno_id))
+        conn.commit()
+
+        if cur.rowcount == 0:
+            return jsonify({"error": "Terreno no encontrado"}), 404
+
+        return jsonify({"status": "ok", "message": "Terreno actualizado correctamente"})
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
 
 # -------------------------------------------------------
-# 🔹 TEST DE CONEXIÓN A LA BD (mantenido por si acaso)
+# 🔹 RUTA PARA ELIMINAR UN TERRENO (DELETE)
 # -------------------------------------------------------
-@app.route("/test-db")
-def test_db():
+@app.route("/terrenos/<int:terreno_id>", methods=["DELETE"])
+def delete_terreno(terreno_id):
     conn = None
     cur = None
     try:
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute("SELECT NOW()")
-        result = cur.fetchone()
-        return jsonify({"status": "ok", "db_time": str(result[0])})
+        cur.execute("DELETE FROM terrenos WHERE id = %s", (terreno_id,))
+        conn.commit()
+
+        if cur.rowcount == 0:
+            return jsonify({"error": "Terreno no encontrado"}), 404
+
+        return jsonify({"status": "ok", "message": "Terreno eliminado correctamente"})
+
     except Exception as e:
+        if conn:
+            conn.rollback()
         return jsonify({"status": "error", "message": str(e)}), 500
     finally:
         if cur:

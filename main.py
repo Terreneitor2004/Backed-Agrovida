@@ -41,28 +41,18 @@ def terrenos():
         latitud = data.get("latitud")
         longitud = data.get("longitud")
 
-        # Validar datos requeridos
         if not nombre or latitud is None or longitud is None:
             return jsonify({"error": "Faltan datos obligatorios"}), 400
 
-        try:
-            cur.execute(
-                """
-                INSERT INTO terrenos (nombre, latitud, longitud)
-                VALUES (%s, %s, %s)
-                """,
-                (nombre, latitud, longitud)
-            )
-            conn.commit()
-            return jsonify({"status": "ok", "message": "Terreno guardado correctamente"})
-        except Exception as e:
-            conn.rollback()
-            return jsonify({"error": str(e)}), 500
-        finally:
-            cur.close()
-            conn.close()
+        cur.execute(
+            "INSERT INTO terrenos (nombre, latitud, longitud) VALUES (%s, %s, %s)",
+            (nombre, latitud, longitud)
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({"status": "ok", "message": "Terreno guardado correctamente"})
 
-    # Si es GET: devolver todos los terrenos
     cur.execute("SELECT id, nombre, latitud, longitud FROM terrenos ORDER BY id DESC")
     rows = cur.fetchall()
     cur.close()

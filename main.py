@@ -11,8 +11,7 @@ app = Flask(__name__)
 DB_USER = os.environ.get("DB_USER")
 DB_PASS = os.environ.get("DB_PASS")
 DB_NAME = os.environ.get("DB_NAME")
-# Usamos la IP pública, tal como se corrigió
-DB_HOST = os.environ.get("DB_HOST") 
+DB_HOST = os.environ.get("DB_HOST")
 
 def get_connection():
     return psycopg2.connect(
@@ -65,7 +64,6 @@ def terrenos():
         # --- Método GET ---
         cur.execute("SELECT id, nombre, latitud, longitud FROM terrenos ORDER BY id DESC")
         rows = cur.fetchall() 
-        
         return jsonify([dict(row) for row in rows])
 
     except (Exception, psycopg2.DatabaseError) as e:
@@ -80,7 +78,71 @@ def terrenos():
             conn.close()
 
 # -------------------------------------------------------
-# 🔹 RUTA DE COMENTARIOS (GET / POST)
+# 🔹 RUTA PUT: EDITAR NOMBRE DE TERRENO
+# -------------------------------------------------------
+@app.route("/terrenos/<int:terreno_id>", methods=["PUT"])
+def editar_terreno(terreno_id):
+    conn = None
+    cur = None
+    try:
+        data = request.get_json()
+        nuevo_nombre = data.get("nombre")
+
+        if not nuevo_nombre:
+            return jsonify({"error": "El nombre es obligatorio"}), 400
+
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("UPDATE terrenos SET nombre = %s WHERE id = %s RETURNING id", (nuevo_nombre, terreno_id))
+        result = cur.fetchone()
+        conn.commit()
+
+        if result:
+            return jsonify({"status": "ok", "message": "Terreno actualizado"})
+        else:
+            return jsonify({"error": "Terreno no encontrado"}), 404
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+# -------------------------------------------------------
+# 🔹 RUTA DELETE: ELIMINAR TERRENO
+# -------------------------------------------------------
+@app.route("/terrenos/<int:terreno_id>", methods=["DELETE"])
+def eliminar_terreno(terreno_id):
+    conn = None
+    cur = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("DELETE FROM terrenos WHERE id = %s RETURNING id", (terreno_id,))
+        result = cur.fetchone()
+        conn.commit()
+
+        if result:
+            return jsonify({"status": "ok", "message": "Terreno eliminado"})
+        else:
+            return jsonify({"error": "Terreno no encontrado"}), 404
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+# -------------------------------------------------------
+# 🔹 COMENTARIOS (ya los tienes)
 # -------------------------------------------------------
 @app.route("/comentarios", methods=["POST"])
 def post_comentario():
@@ -94,17 +156,14 @@ def post_comentario():
         terreno_id = data.get("terreno_id")
         texto = data.get("texto")
 
-        # Validación
         if not terreno_id or not texto:
             return jsonify({"error": "Faltan datos obligatorios (terreno_id, texto)"}), 400
-        
-        # Validar que terreno_id sea un número entero
+
         try:
             terreno_id = int(terreno_id)
         except ValueError:
             return jsonify({"error": "terreno_id debe ser un número entero"}), 400
 
-        # Inserción
         cur.execute(
             "INSERT INTO comentarios (terreno_id, texto) VALUES (%s, %s) RETURNING id, fecha",
             (terreno_id, texto)
@@ -129,9 +188,6 @@ def post_comentario():
         if conn:
             conn.close()
 
-# -------------------------------------------------------
-# 🔹 RUTA PARA OBTENER COMENTARIOS POR TERRENO
-# -------------------------------------------------------
 @app.route("/comentarios/<int:terreno_id>", methods=["GET"])
 def get_comentarios(terreno_id):
     conn = None 
@@ -146,87 +202,16 @@ def get_comentarios(terreno_id):
         )
         rows = cur.fetchall()
         
-        # Convertimos las filas a diccionarios y formateamos la fecha
         comentarios_list = []
         for row in rows:
             comentarios_list.append({
                 "id": row["id"], 
                 "texto": row["texto"], 
-                "fecha": str(row["fecha"]) # Convertir el timestamp a string
+                "fecha": str(row["fecha"])
             })
-            
         return jsonify(comentarios_list)
 
     except (Exception, psycopg2.DatabaseError) as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-    finally:
-        if cur:
-            cur.close()
-        if conn:
-            conn.close()
-            
-# -------------------------------------------------------
-# 🔹 RUTA PARA ACTUALIZAR UN TERRENO (PUT)
-# -------------------------------------------------------
-@app.route("/terrenos/<int:terreno_id>", methods=["PUT"])
-def update_terreno(terreno_id):
-    conn = None
-    cur = None
-    try:
-        data = request.get_json()
-        nombre = data.get("nombre")
-        latitud = data.get("latitud")
-        longitud = data.get("longitud")
-
-        if not nombre or latitud is None or longitud is None:
-            return jsonify({"error": "Faltan datos"}), 400
-
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            UPDATE terrenos
-            SET nombre = %s, latitud = %s, longitud = %s
-            WHERE id = %s
-        """, (nombre, latitud, longitud, terreno_id))
-        conn.commit()
-
-        if cur.rowcount == 0:
-            return jsonify({"error": "Terreno no encontrado"}), 404
-
-        return jsonify({"status": "ok", "message": "Terreno actualizado correctamente"})
-
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 500
-    finally:
-        if cur:
-            cur.close()
-        if conn:
-            conn.close()
-
-
-# -------------------------------------------------------
-# 🔹 RUTA PARA ELIMINAR UN TERRENO (DELETE)
-# -------------------------------------------------------
-@app.route("/terrenos/<int:terreno_id>", methods=["DELETE"])
-def delete_terreno(terreno_id):
-    conn = None
-    cur = None
-    try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute("DELETE FROM terrenos WHERE id = %s", (terreno_id,))
-        conn.commit()
-
-        if cur.rowcount == 0:
-            return jsonify({"error": "Terreno no encontrado"}), 404
-
-        return jsonify({"status": "ok", "message": "Terreno eliminado correctamente"})
-
-    except Exception as e:
-        if conn:
-            conn.rollback()
         return jsonify({"status": "error", "message": str(e)}), 500
     finally:
         if cur:

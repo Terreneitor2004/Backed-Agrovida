@@ -1,5 +1,2 @@
-Flask
-gunicorn
-SQLAlchemy
-pg8000
-cloud-sql-python-connector
+flask
+psycopg2-binary

@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 import psycopg2
-import psycopg2.extras # Importante para mejores diccionarios
+import psycopg2.extras 
 import os
 
 app = Flask(__name__)
@@ -11,11 +11,10 @@ app = Flask(__name__)
 DB_USER = os.environ.get("DB_USER")
 DB_PASS = os.environ.get("DB_PASS")
 DB_NAME = os.environ.get("DB_NAME")
-DB_HOST = os.environ.get("DB_HOST")
+# Usamos la IP pública, tal como se corrigió
+DB_HOST = os.environ.get("DB_HOST") 
 
 def get_connection():
-    # psycopg2.connect puede lanzar una excepción si las credenciales
-    # o el host son incorrectos, por eso debe estar en un try/except.
     return psycopg2.connect(
         user=DB_USER,
         password=DB_PASS,
@@ -28,17 +27,17 @@ def get_connection():
 # -------------------------------------------------------
 @app.route("/")
 def home():
-    return "🚜 Servicio AgroVida activo - módulo terrenos"
+    return "🚜 Servicio AgroVida activo - módulos terrenos y comentarios"
 
 # -------------------------------------------------------
 # 🔹 RUTA DE TERRENOS (GET / POST)
 # -------------------------------------------------------
 @app.route("/terrenos", methods=["GET", "POST"])
 def terrenos():
-    conn = None # Inicializamos la conexión como None
+    conn = None 
+    cur = None
     try:
         conn = get_connection()
-        # Usamos un cursor que devuelve diccionarios para el GET
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
         if request.method == "POST":
@@ -54,39 +53,120 @@ def terrenos():
                 "INSERT INTO terrenos (nombre, latitud, longitud) VALUES (%s, %s, %s) RETURNING id",
                 (nombre, latitud, longitud)
             )
-            nuevo_id = cur.fetchone()["id"] # Obtenemos el ID del terreno insertado
+            nuevo_id = cur.fetchone()["id"]
             conn.commit()
             
             return jsonify({
                 "status": "ok", 
                 "message": "Terreno guardado correctamente",
                 "id": nuevo_id
-            }), 201 # 201 Created es mejor para un POST exitoso
+            }), 201
 
         # --- Método GET ---
         cur.execute("SELECT id, nombre, latitud, longitud FROM terrenos ORDER BY id DESC")
-        # Al usar DictCursor, 'rows' será una lista de diccionarios
         rows = cur.fetchall() 
         
-        # Convertimos las filas (que son DictRow) a diccionarios estándar
         return jsonify([dict(row) for row in rows])
 
     except (Exception, psycopg2.DatabaseError) as e:
-        # ¡ESTO ES CLAVE! Captura cualquier error de BD
-        # Si hubo un error en la transacción, hacemos rollback
         if conn:
             conn.rollback() 
         return jsonify({"status": "error", "message": str(e)}), 500
 
     finally:
-        # ¡ESTO TAMBIÉN ES CLAVE! Asegura que la conexión SIEMPRE se cierre
         if cur:
             cur.close()
         if conn:
             conn.close()
 
 # -------------------------------------------------------
-# 🔹 TEST DE CONEXIÓN A LA BD
+# 🔹 RUTA DE COMENTARIOS (GET / POST)
+# -------------------------------------------------------
+@app.route("/comentarios", methods=["POST"])
+def post_comentario():
+    conn = None 
+    cur = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        data = request.get_json()
+        terreno_id = data.get("terreno_id")
+        texto = data.get("texto")
+
+        # Validación
+        if not terreno_id or not texto:
+            return jsonify({"error": "Faltan datos obligatorios (terreno_id, texto)"}), 400
+        
+        # Validar que terreno_id sea un número entero
+        try:
+            terreno_id = int(terreno_id)
+        except ValueError:
+            return jsonify({"error": "terreno_id debe ser un número entero"}), 400
+
+        # Inserción
+        cur.execute(
+            "INSERT INTO comentarios (terreno_id, texto) VALUES (%s, %s) RETURNING id, fecha",
+            (terreno_id, texto)
+        )
+        result = cur.fetchone()
+        conn.commit()
+        
+        return jsonify({
+            "status": "ok", 
+            "message": "Comentario guardado",
+            "id": result["id"],
+            "fecha": str(result["fecha"])
+        }), 201
+
+    except (Exception, psycopg2.DatabaseError) as e:
+        if conn:
+            conn.rollback() 
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+# -------------------------------------------------------
+# 🔹 RUTA PARA OBTENER COMENTARIOS POR TERRENO
+# -------------------------------------------------------
+@app.route("/comentarios/<int:terreno_id>", methods=["GET"])
+def get_comentarios(terreno_id):
+    conn = None 
+    cur = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        cur.execute(
+            "SELECT id, texto, fecha FROM comentarios WHERE terreno_id = %s ORDER BY fecha DESC",
+            (terreno_id,)
+        )
+        rows = cur.fetchall()
+        
+        # Convertimos las filas a diccionarios y formateamos la fecha
+        comentarios_list = []
+        for row in rows:
+            comentarios_list.append({
+                "id": row["id"], 
+                "texto": row["texto"], 
+                "fecha": str(row["fecha"]) # Convertir el timestamp a string
+            })
+            
+        return jsonify(comentarios_list)
+
+    except (Exception, psycopg2.DatabaseError) as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+# -------------------------------------------------------
+# 🔹 TEST DE CONEXIÓN A LA BD (mantenido por si acaso)
 # -------------------------------------------------------
 @app.route("/test-db")
 def test_db():
@@ -99,7 +179,6 @@ def test_db():
         result = cur.fetchone()
         return jsonify({"status": "ok", "db_time": str(result[0])})
     except Exception as e:
-        # Devuelve el error específico de conexión
         return jsonify({"status": "error", "message": str(e)}), 500
     finally:
         if cur:

@@ -218,6 +218,75 @@ def get_comentarios(terreno_id):
             cur.close()
         if conn:
             conn.close()
+            
+# -------------------------------------------------------
+# 🔹 RUTA PUT: EDITAR COMENTARIO
+# -------------------------------------------------------
+@app.route("/comentarios/<int:comentario_id>", methods=["PUT"])
+def editar_comentario(comentario_id):
+    conn = None
+    cur = None
+    try:
+        data = request.get_json()
+        nuevo_texto = data.get("texto")
+
+        if not nuevo_texto:
+            return jsonify({"error": "El texto no puede estar vacío"}), 400
+
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        cur.execute(
+            "UPDATE comentarios SET texto = %s WHERE id = %s RETURNING id",
+            (nuevo_texto, comentario_id)
+        )
+        result = cur.fetchone()
+        conn.commit()
+
+        if result:
+            return jsonify({"status": "ok", "message": "Comentario actualizado"})
+        else:
+            return jsonify({"error": "Comentario no encontrado"}), 404
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+# -------------------------------------------------------
+# 🔹 RUTA DELETE: ELIMINAR COMENTARIO
+# -------------------------------------------------------
+@app.route("/comentarios/<int:comentario_id>", methods=["DELETE"])
+def eliminar_comentario(comentario_id):
+    conn = None
+    cur = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("DELETE FROM comentarios WHERE id = %s RETURNING id", (comentario_id,))
+        result = cur.fetchone()
+        conn.commit()
+
+        if result:
+            return jsonify({"status": "ok", "message": "Comentario eliminado"})
+        else:
+            return jsonify({"error": "Comentario no encontrado"}), 404
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
 
 # -------------------------------------------------------
 # 🔹 EJECUCIÓN PRINCIPAL

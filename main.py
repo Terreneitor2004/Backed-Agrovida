@@ -2,8 +2,8 @@ from flask import Flask, request, jsonify
 import psycopg2
 import psycopg2.extras 
 import os
-import requests  # arriba
-WEATHER_KEY = os.environ.get("WEATHER_KEY")
+
+
 
 
 app = Flask(__name__)
@@ -289,42 +289,6 @@ def eliminar_comentario(comentario_id):
             cur.close()
         if conn:
             conn.close()
-
-
-@app.route("/clima", methods=["GET"])
-def clima():
-    try:
-        lat = request.args.get("lat")
-        lon = request.args.get("lon")
-        if not lat or not lon:
-            return jsonify({"error": "lat y lon son obligatorios"}), 400
-
-        # llamada al proveedor (ej. OpenWeather)
-        r = requests.get(
-            "https://api.openweathermap.org/data/2.5/weather",
-            params={
-                "lat": lat,
-                "lon": lon,
-                "appid": WEATHER_KEY,
-                "units": "metric",
-                "lang": "es",
-            },
-            timeout=8
-        )
-        if r.status_code != 200:
-            return jsonify({"error": "clima_upstream", "status": r.status_code, "body": r.text}), 502
-
-        data = r.json()
-        out = {
-            "temp": data.get("main", {}).get("temp"),
-            "desc": (data.get("weather") or [{}])[0].get("description"),
-            "icon": (data.get("weather") or [{}])[0].get("icon"),
-            "wind": data.get("wind", {}).get("speed"),
-            "city": data.get("name"),
-        }
-        return jsonify(out)
-    except Exception as e:
-        return jsonify({"error": "clima_exception", "message": str(e)}), 500
 
 
 # -------------------------------------------------------

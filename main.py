@@ -29,7 +29,7 @@ def get_connection():
 # -------------------------------------------------------
 @app.route("/")
 def home():
-    return "🚜 Servicio AgroVida activo - módulos terrenos y comentarios"
+    return "Servicio AgroVida activo"
 
 # -------------------------------------------------------
 # 🔹 RUTA DE TERRENOS (GET / POST)

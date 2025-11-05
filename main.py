@@ -5,7 +5,6 @@ import os
 
 
 
-
 app = Flask(__name__)
 
 # -------------------------------------------------------
@@ -45,16 +44,19 @@ def terrenos():
         if request.method == "POST":
             data = request.get_json()
             nombre = data.get("nombre")
+            propietario = data.get("propietario")
             latitud = data.get("latitud")
             longitud = data.get("longitud")
+
 
             if not nombre or latitud is None or longitud is None:
                 return jsonify({"error": "Faltan datos obligatorios (nombre, latitud, longitud)"}), 400
 
             cur.execute(
-                "INSERT INTO terrenos (nombre, latitud, longitud) VALUES (%s, %s, %s) RETURNING id",
-                (nombre, latitud, longitud)
+                "INSERT INTO terrenos (nombre, propietario, latitud, longitud) VALUES (%s, %s, %s, %s) RETURNING id",
+                (nombre, propietario, latitud, longitud)
             )
+
             nuevo_id = cur.fetchone()["id"]
             conn.commit()
             
@@ -65,7 +67,7 @@ def terrenos():
             }), 201
 
         # --- Método GET ---
-        cur.execute("SELECT id, nombre, latitud, longitud FROM terrenos ORDER BY id DESC")
+        cur.execute("SELECT id, nombre, propietario, latitud, longitud FROM terrenos ORDER BY id DESC")
         rows = cur.fetchall() 
         return jsonify([dict(row) for row in rows])
 

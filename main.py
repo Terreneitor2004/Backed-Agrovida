@@ -7,9 +7,8 @@ import os
 
 app = Flask(__name__)
 
-# -------------------------------------------------------
-# 🔹 CONFIGURACIÓN DE CONEXIÓN A CLOUD SQL
-# -------------------------------------------------------
+
+# CONFIGURACIÓN DE CONEXIÓN A CLOUD SQL
 DB_USER = os.environ.get("DB_USER")
 DB_PASS = os.environ.get("DB_PASS")
 DB_NAME = os.environ.get("DB_NAME")
@@ -23,16 +22,15 @@ def get_connection():
         host=DB_HOST
     )
 
-# -------------------------------------------------------
-# 🔹 RUTA PRINCIPAL
-# -------------------------------------------------------
+
+#RUTA PRINCIPAL
 @app.route("/")
 def home():
     return "Servicio AgroVida activo"
 
-# -------------------------------------------------------
-# 🔹 RUTA DE TERRENOS (GET / POST)
-# -------------------------------------------------------
+
+#RUTA DE TERRENOS (GET / POST)
+
 @app.route("/terrenos", methods=["GET", "POST"])
 def terrenos():
     conn = None 
@@ -66,7 +64,7 @@ def terrenos():
                 "id": nuevo_id
             }), 201
 
-        # --- Método GET ---
+        #Método GET 
         cur.execute("SELECT id, nombre, propietario, latitud, longitud FROM terrenos ORDER BY id DESC")
         rows = cur.fetchall() 
         return jsonify([dict(row) for row in rows])
@@ -82,9 +80,7 @@ def terrenos():
         if conn:
             conn.close()
 
-# -------------------------------------------------------
-# 🔹 RUTA PUT: EDITAR NOMBRE DE TERRENO
-# -------------------------------------------------------
+#RUTA PUT: EDITAR NOMBRE DE TERRENO
 @app.route("/terrenos/<int:terreno_id>", methods=["PUT"])
 def editar_terreno(terreno_id):
     conn = None
@@ -117,9 +113,8 @@ def editar_terreno(terreno_id):
         if conn:
             conn.close()
 
-# -------------------------------------------------------
-# 🔹 RUTA DELETE: ELIMINAR TERRENO
-# -------------------------------------------------------
+
+#RUTA DELETE: ELIMINAR TERRENO
 @app.route("/terrenos/<int:terreno_id>", methods=["DELETE"])
 def eliminar_terreno(terreno_id):
     conn = None
@@ -146,9 +141,8 @@ def eliminar_terreno(terreno_id):
         if conn:
             conn.close()
 
-# -------------------------------------------------------
-# 🔹 COMENTARIOS (ya los tienes)
-# -------------------------------------------------------
+
+#COMENTARIOS
 @app.route("/comentarios", methods=["POST"])
 def post_comentario():
     conn = None 
@@ -223,10 +217,8 @@ def get_comentarios(terreno_id):
             cur.close()
         if conn:
             conn.close()
-            
-# -------------------------------------------------------
-# 🔹 RUTA PUT: EDITAR COMENTARIO
-# -------------------------------------------------------
+          
+#RUTA PUT: EDITAR COMENTARIO
 @app.route("/comentarios/<int:comentario_id>", methods=["PUT"])
 def editar_comentario(comentario_id):
     conn = None
@@ -263,9 +255,7 @@ def editar_comentario(comentario_id):
         if conn:
             conn.close()
 
-# -------------------------------------------------------
-# 🔹 RUTA DELETE: ELIMINAR COMENTARIO
-# -------------------------------------------------------
+#RUTA DELETE: ELIMINAR COMENTARIO
 @app.route("/comentarios/<int:comentario_id>", methods=["DELETE"])
 def eliminar_comentario(comentario_id):
     conn = None
@@ -292,9 +282,6 @@ def eliminar_comentario(comentario_id):
         if conn:
             conn.close()
 
-
-# -------------------------------------------------------
-# 🔹 EJECUCIÓN PRINCIPAL
-# -------------------------------------------------------
+#EJECUCIÓN PRINCIPAL
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
